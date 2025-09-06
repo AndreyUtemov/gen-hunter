@@ -1,0 +1,114 @@
+@page "/patients"
+@using GenHunter.Data
+@using GenHunter.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+<h3>Patients</h3>
+
+@if (patients == null)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <table border="1" style="border-collapse: collapse; width: 100%; table-layout: fixed;">
+        <thead>
+        <tr>
+            <th style="width:10%; cursor:pointer" @onclick="() => SortBy(nameof(Patient.KID))">
+                KID @SortIcon(nameof(Patient.KID))
+            </th>
+            <th style="width:25%; cursor:pointer" @onclick="() => SortBy(nameof(Patient.Surname))">
+                Surname @SortIcon(nameof(Patient.Surname))
+            </th>
+            <th style="width:25%; cursor:pointer" @onclick="() => SortBy(nameof(Patient.Name))">
+                Name @SortIcon(nameof(Patient.Name))
+            </th>
+            <th style="width:20%; cursor:pointer" @onclick="() => SortBy(nameof(Patient.DOB))">
+                Date of Birth @SortIcon(nameof(Patient.DOB))
+            </th>
+            <th style="width:20%; cursor:pointer" @onclick="() => SortBy(nameof(Patient.Sex))">
+                Sex @SortIcon(nameof(Patient.Sex))
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var patient in patients)
+        {
+            <tr style="cursor:pointer" @onclick="() => OnPatientClick(patient)">
+                <td>@patient.KID</td>
+                <td>@patient.Surname</td>
+                <td>@patient.Name</td>
+                <td>@patient.DOB.ToString("d")</td>
+                <td>@patient.Sex.ToString()</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+<style>
+    th, td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 4px 8px;
+    }
+</style>
+
+@code {
+    private List<Patient> patients;
+    private string currentSortColumn = nameof(Patient.Surname);
+    private bool ascending = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientsAsync();
+    }
+
+    private async Task LoadPatientsAsync()
+    {
+        IQueryable<Patient> query = DbContext.AllPatients;
+
+        query = currentSortColumn switch
+        {
+            nameof(Patient.KID)     => ascending ? query.OrderBy(p => p.KID) : query.OrderByDescending(p => p.KID),
+            nameof(Patient.Surname) => ascending ? query.OrderBy(p => p.Surname) : query.OrderByDescending(p => p.Surname),
+            nameof(Patient.Name)    => ascending ? query.OrderBy(p => p.Name) : query.OrderByDescending(p => p.Name),
+            nameof(Patient.DOB)     => ascending ? query.OrderBy(p => p.DOB) : query.OrderByDescending(p => p.DOB),
+            nameof(Patient.Sex)     => ascending ? query.OrderBy(p => p.Sex) : query.OrderByDescending(p => p.Sex),
+            _                       => query.OrderBy(p => p.Surname)
+        };
+
+        patients = await query.ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task SortBy(string column)
+    {
+        if (currentSortColumn == column)
+        {
+            ascending = !ascending; 
+        }
+        else
+        {
+            currentSortColumn = column;
+            ascending = true; 
+        }
+
+        await LoadPatientsAsync();
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (currentSortColumn != column) return new MarkupString("△"); 
+        var icon = ascending ? "▲" : "▼"; 
+        return new MarkupString($"<span style='margin-left:5px'>{icon}</span>");
+    }
+
+    private void OnPatientClick(Patient patient)
+    {
+        Navigation.NavigateTo($"/patients/{patient.KID}");
+    }
+}
